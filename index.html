@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ポーカー トゥワイス勝率 | Sapiens &amp; Co.</title>
+<meta name="description" content="ライブのトワイス（ラン・イット・ツワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
+<meta name="theme-color" content="#0A0E0D">
+<link rel="canonical" href="https://sapiens-and-co.com/twicewinrate/">
+<link rel="icon" href="./favicon-64.png" sizes="64x64">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="manifest" href="./manifest.json">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ポーカー トゥワイス勝率">
+<meta property="og:description" content="ライブのトワイス（ラン・イット・ツワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
+<meta property="og:url" content="https://sapiens-and-co.com/twicewinrate/">
+<meta property="og:image" content="https://sapiens-and-co.com/twicewinrate/icon-512.png">
+<meta name="twitter:card" content="summary">
+<style>
+:root{color-scheme:dark light}
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#0A0E0D; --panel:#131917; --panel2:#1B2320; --sunk:#0D1211;
+  --line:#2A3531; --line2:#3A4842;
+  --ink:#E9EFEB; --dim:#B4C2BB; --muted:#8B9C94;
+  --run1:#E9A13B; --run2:#52B7C6; --run3:#B98BD9;
+  --good:#4FCB86; --bad:#E4636A; --ring:#F2D26B;
+  --cardface:#FBFAF7; --cardedge:#00000022;
+  --s-spade:#101314; --s-heart:#CF2F35; --s-diam:#CF2F35; --s-club:#101314;
+  --shadow:0 1px 0 #ffffff0d inset, 0 6px 18px -12px #000;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#EDF1EE; --panel:#FFFFFF; --panel2:#F4F7F4; --sunk:#E4EAE6;
+    --line:#D5DED8; --line2:#C2CDC6;
+    --ink:#121A17; --dim:#3D4A44; --muted:#5F6E67;
+    --run1:#A9670A; --run2:#136A79; --run3:#6C4A9E;
+    --good:#1C7C4C; --bad:#B23238; --ring:#8A6A00;
+    --cardface:#FFFFFF; --cardedge:#0000001f;
+    --shadow:0 1px 2px #0f231b14, 0 8px 20px -16px #0f231b66;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#EDF1EE; --panel:#FFFFFF; --panel2:#F4F7F4; --sunk:#E4EAE6;
+  --line:#D5DED8; --line2:#C2CDC6;
+  --ink:#121A17; --dim:#3D4A44; --muted:#5F6E67;
+  --run1:#A9670A; --run2:#136A79; --run3:#6C4A9E;
+  --good:#1C7C4C; --bad:#B23238; --ring:#8A6A00;
+  --cardface:#FFFFFF; --cardedge:#0000001f;
+  --shadow:0 1px 2px #0f231b14, 0 8px 20px -16px #0f231b66;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans JP",system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  font-size:14px; line-height:1.6; margin:0;
+  padding:14px 12px calc(var(--sheet-h,0px) + 40px);
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:452px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer}
+:focus-visible{outline:2px solid var(--ring); outline-offset:2px; border-radius:4px}
+
+/* ---------- head ---------- */
+.head{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.brand{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:25px; letter-spacing:.01em; line-height:1.1}
+.brand em{font-style:normal; color:var(--run2)}
+.tag{font-size:11px; color:var(--muted); letter-spacing:.11em; text-transform:uppercase; white-space:nowrap}
+
+/* ---------- generic block ---------- */
+.blk{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 12px; box-shadow:var(--shadow)}
+.blk-h{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:9px}
+.lbl{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:600}
+
+/* ---------- cards ---------- */
+.card{
+  width:38px; height:52px; border-radius:5px; background:var(--cardface);
+  border:1px solid var(--cardedge); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:0; padding:0; flex:none;
+  font-family:"Bodoni Moda",Georgia,serif; font-weight:700; line-height:1;
+  box-shadow:0 1px 2px #0006;
+}
+.card .r{font-size:21px}
+.card .s{font-size:15px; margin-top:1px}
+.card.sm{width:29px; height:40px}
+.card.sm .r{font-size:16px} .card.sm .s{font-size:11px}
+.card.empty{background:transparent; border:1px dashed var(--line2); color:var(--muted); box-shadow:none}
+.card.empty .r{font-size:15px; font-family:"IBM Plex Sans JP",sans-serif; font-weight:500; color:var(--muted)}
+.card.sel{box-shadow:0 0 0 2px var(--ring), 0 1px 2px #0006}
+.card.dead{opacity:.42}
+.sp{color:var(--s-spade)} .he{color:var(--s-heart)} .di{color:var(--s-diam)} .cl{color:var(--s-club)}
+
+/* ---------- players ---------- */
+.plist{display:flex; flex-direction:column; gap:7px}
+.p{display:grid; grid-template-columns:14px auto 1fr; align-items:center; gap:9px;
+   background:var(--panel2); border:1px solid transparent; border-radius:10px; padding:7px 9px; width:100%; text-align:left}
+.p.hero{border-color:var(--ring)}
+.p .no{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted)}
+.p.hero .no{color:var(--ring)}
+.p .hand{display:flex; gap:4px}
+.p .eq{display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0}
+.p .big{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:26px; line-height:1; font-variant-numeric:tabular-nums}
+.p .sub{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); white-space:nowrap}
+.wait{font-size:11.5px; color:var(--muted)}
+
+/* ---------- board / fork ---------- */
+.stem{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+.street{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); margin-left:auto}
+.fork{margin-top:10px; display:flex; flex-direction:column; gap:8px; position:relative}
+.lane{display:grid; grid-template-columns:52px 1fr; align-items:center; gap:9px;
+      border-left:2px solid var(--laneC); border-radius:0 8px 8px 0; padding:6px 6px 6px 9px; background:var(--sunk)}
+.lane .ln{font-size:10.5px; font-weight:600; letter-spacing:.08em; color:var(--laneC)}
+.lane .ln b{display:block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:500; color:var(--muted); letter-spacing:0}
+.lane .cards{display:flex; gap:5px; flex-wrap:wrap}
+.note{font-size:11.5px; color:var(--muted); margin-top:9px; line-height:1.5}
+
+/* ---------- controls ---------- */
+.row{display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+.seg{display:flex; background:var(--sunk); border:1px solid var(--line); border-radius:9px; padding:2px; gap:2px}
+.seg button{padding:5px 11px; border-radius:7px; font-size:12.5px; color:var(--dim); font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--panel2); color:var(--ink); box-shadow:0 0 0 1px var(--line2)}
+.btn{border:1px solid var(--line2); border-radius:9px; padding:6px 12px; font-size:12.5px; color:var(--dim); background:var(--panel2)}
+.btn:active{background:var(--sunk)}
+.head .btn{white-space:nowrap; flex:none}
+@media(max-width:359px){
+  #themeBtn{font-size:0; padding:6px 9px}
+  #themeBtn::before{content:"◐"; font-size:14px; line-height:1.2; display:block}
+}
+.btn.arm{color:var(--bad); border-color:var(--bad)}
+.btn.icon{padding:6px 10px; font-family:"IBM Plex Mono",monospace}
+
+/* ---------- results ---------- */
+.split{display:flex; flex-direction:column; gap:9px}
+.srow{display:grid; grid-template-columns:1fr auto; gap:8px 10px; align-items:center}
+.sname{font-size:12.5px; color:var(--dim)}
+.sname i{font-style:normal; color:var(--muted); font-size:11px}
+.sval{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:14px; font-variant-numeric:tabular-nums}
+.bar{grid-column:1/-1; height:7px; border-radius:4px; background:var(--sunk); overflow:hidden}
+.bar i{display:block; height:100%; border-radius:4px}
+.stack{display:flex; height:11px; border-radius:5px; overflow:hidden; background:var(--sunk); gap:1px}
+.stack i{display:block}
+
+.kv{display:grid; grid-template-columns:1fr auto auto; gap:6px 12px; align-items:baseline}
+.kv .k{font-size:12.5px; color:var(--dim)}
+.kv .v{font-family:"IBM Plex Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums}
+.kv .v.wide{grid-column:2/-1}
+.arrow{color:var(--muted); font-family:"IBM Plex Mono",monospace; font-size:12px}
+
+.outs{display:flex; gap:4px; flex-wrap:wrap; margin-top:8px}
+.meta{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); text-align:center; line-height:1.7}
+.warn{font-size:12px; color:var(--run1); background:color-mix(in srgb, var(--run1) 12%, transparent);
+      border:1px solid color-mix(in srgb, var(--run1) 35%, transparent); border-radius:8px; padding:7px 9px}
+
+/* ---------- picker sheet ---------- */
+.sheet{position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line2);
+       box-shadow:0 -10px 30px -18px #000; z-index:9; padding:9px 12px calc(10px + env(safe-area-inset-bottom))}
+.sheet-in{max-width:452px; margin:0 auto; display:flex; flex-direction:column; gap:8px}
+.sheet-h{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.suits{display:flex; gap:7px; align-items:center; min-height:52px}
+.suits .hint{font-size:12px; color:var(--muted)}
+.ranks{display:grid; grid-template-columns:repeat(7,1fr); gap:4px}
+.ranks button{background:var(--panel2); border:1px solid var(--line); border-radius:7px; padding:9px 0;
+              font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:16px; color:var(--ink)}
+.ranks button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.card[disabled]{opacity:.2}
+.foot{font-size:11px; color:var(--muted); text-align:center; padding-bottom:6px; line-height:1.7}
+@media (prefers-reduced-motion:no-preference){
+  .card,.btn,.seg button{transition:box-shadow .12s ease, background .12s ease}
+}
+</style>
+<script>try{var _t=localStorage.getItem("twice-theme"); if(_t) document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="brand">Run It <em>Twice</em></div>
+      <div class="tag">equity &amp; variance</div>
+    </div>
+    <div class="row" style="gap:6px; flex-wrap:nowrap">
+      <button class="btn" id="themeBtn">配色切替</button>
+      <button class="btn" id="reset">リセット</button>
+    </div>
+  </div>
+
+  <!-- players -->
+  <div class="blk">
+    <div class="blk-h">
+      <span class="lbl">プレイヤー</span>
+      <div class="row" style="gap:5px">
+        <button class="btn icon" id="pMinus" aria-label="プレイヤーを減らす">−</button>
+        <button class="btn icon" id="pPlus" aria-label="プレイヤーを増やす">＋</button>
+      </div>
+    </div>
+    <div class="plist" id="players"></div>
+    <div class="note">行をタップすると基準プレイヤー（黄枠）が切り替わります。</div>
+  </div>
+
+  <!-- board -->
+  <div class="blk">
+    <div class="blk-h">
+      <span class="lbl">共通ボード ／ オールイン時点</span>
+      <span class="street" id="street"></span>
+    </div>
+    <div class="stem" id="stem"></div>
+    <div class="fork" id="fork"></div>
+    <div class="note" id="deckNote"></div>
+  </div>
+
+  <!-- settings -->
+  <div class="blk">
+    <div class="row">
+      <span class="lbl" style="margin-right:auto">ラン数</span>
+      <div class="seg" id="runSeg">
+        <button data-r="1">1本</button><button data-r="2">2本</button><button data-r="3">3本</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:9px">
+      <span class="lbl" style="margin-right:auto">精度</span>
+      <div class="seg" id="accSeg">
+        <button data-a="0">標準</button><button data-a="1">高精度</button>
+      </div>
+      <button class="btn" id="recalc">再計算</button>
+    </div>
+    <div class="row" style="margin-top:9px">
+      <button class="btn" id="deadBtn">デッドカード</button>
+      <div class="row" id="deadRow" style="gap:5px"></div>
+    </div>
+  </div>
+
+  <!-- results -->
+  <div id="result"></div>
+
+  <div class="foot">
+    共通ボードを埋めた枚数がオールインのストリートになります。<br>
+    ラン内の「?」を押すと、その1本目・2本目のカードを固定できます。
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-in">
+    <div class="sheet-h">
+      <span class="lbl" id="pickWhat">カードを選択</span>
+      <div class="row" style="gap:6px">
+        <button class="btn" id="pickClear">クリア</button>
+        <button class="btn" id="pickClose">閉じる</button>
+      </div>
+    </div>
+    <div class="suits" id="suits"></div>
+    <div class="ranks" id="ranks"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================ カード ============================ */
+const RANK = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+const SUIT = ["♠","♥","♦","♣"];
+const SUITC = ["sp","he","di","cl"];
+const cid = (r,s) => r*4+s;
+const rOf = c => c>>2, sOf = c => c&3;
+const cname = c => RANK[rOf(c)] + SUIT[sOf(c)];
+
+/* ============================ 役の評価 ============================ */
+function topN(m,n){const o=[];for(let r=12;r>=0&&o.length<n;r--) if(m>>r&1) o.push(r); while(o.length<n)o.push(0); return o;}
+function strHigh(m){
+  for(let h=12;h>=4;h--) if(((m>>(h-4))&31)===31) return h;
+  return (m&0x100F)===0x100F ? 3 : -1;      // A-2-3-4-5
+}
+function ev7(cs){
+  const rc=new Array(13).fill(0), sc=[0,0,0,0], sm=[0,0,0,0]; let rm=0;
+  for(let i=0;i<7;i++){const c=cs[i],r=c>>2,s=c&3; rc[r]++; sc[s]++; sm[s]|=1<<r; rm|=1<<r;}
+  let fl=-1; for(let s=0;s<4;s++) if(sc[s]>=5) fl=s;
+  if(fl>=0){ const sf=strHigh(sm[fl]); if(sf>=0) return (8<<20)|(sf<<16); }
+  let quad=-1; const tri=[], pair=[];
+  for(let r=12;r>=0;r--){const n=rc[r]; if(n===4)quad=r; else if(n===3)tri.push(r); else if(n===2)pair.push(r);}
+  if(quad>=0){let k=-1; for(let r=12;r>=0;r--) if(r!==quad&&rc[r]){k=r;break;} return (7<<20)|(quad<<16)|(k<<12);}
+  if(tri.length>1)              return (6<<20)|(tri[0]<<16)|(tri[1]<<12);
+  if(tri.length===1&&pair.length)return (6<<20)|(tri[0]<<16)|(pair[0]<<12);
+  if(fl>=0){const t=topN(sm[fl],5); return (5<<20)|(t[0]<<16)|(t[1]<<12)|(t[2]<<8)|(t[3]<<4)|t[4];}
+  const st=strHigh(rm); if(st>=0)  return (4<<20)|(st<<16);
+  if(tri.length===1){const k=topN(rm&~(1<<tri[0]),2); return (3<<20)|(tri[0]<<16)|(k[0]<<12)|(k[1]<<8);}
+  if(pair.length>1){const k=topN(rm&~(1<<pair[0])&~(1<<pair[1]),1); return (2<<20)|(pair[0]<<16)|(pair[1]<<12)|(k[0]<<8);}
+  if(pair.length===1){const k=topN(rm&~(1<<pair[0]),3); return (1<<20)|(pair[0]<<16)|(k[0]<<12)|(k[1]<<8)|(k[2]<<4);}
+  const t=topN(rm,5); return (t[0]<<16)|(t[1]<<12)|(t[2]<<8)|(t[3]<<4)|t[4];
+}
+
+/* ============================ 状態 ============================ */
+const S = {
+  players:[[cid(12,0),cid(11,3)],[cid(7,1),cid(7,2)]],   // A♠K♣ / 9♥9♦
+  board:[cid(5,0),cid(2,2),cid(6,3),cid(10,0)],          // 7♠4♦8♣Q♠
+  runs:[[null],[null],[null]],
+  dead:[], showDead:false, R:2, acc:0, hero:0
+};
+let active=null, pickRank=null;
+
+const laneCount = () => 5 - S.board.length;
+function usedCards(){
+  const u=new Set();
+  S.players.forEach(h=>h.forEach(c=>{if(c!=null)u.add(c)}));
+  S.board.forEach(c=>u.add(c));
+  for(let i=0;i<S.R;i++) S.runs[i].forEach(c=>{if(c!=null)u.add(c)});
+  S.dead.forEach(c=>u.add(c));
+  return u;
+}
+function syncLanes(){
+  const n=laneCount();
+  for(let i=0;i<3;i++){
+    const a=S.runs[i];
+    while(a.length>n) a.pop();
+    while(a.length<n) a.push(null);
+  }
+}
+
+/* ============================ 描画 ============================ */
+function cardEl(c,{sm,sel,cls,dis}={}){
+  const b=document.createElement("button");
+  b.className="card"+(sm?" sm":"")+(sel?" sel":"")+(cls?" "+cls:"");
+  if(c==null){ b.classList.add("empty"); b.innerHTML='<span class="r">?</span>'; }
+  else b.innerHTML=`<span class="r ${SUITC[sOf(c)]}">${RANK[rOf(c)]}</span><span class="s ${SUITC[sOf(c)]}">${SUIT[sOf(c)]}</span>`;
+  if(dis) b.disabled=true;
+  return b;
+}
+const isActive=(k,i,j)=>active&&active.k===k&&active.i===i&&active.j===j;
+
+function render(){
+  syncLanes();
+  /* --- players --- */
+  const pl=document.getElementById("players"); pl.innerHTML="";
+  S.players.forEach((h,i)=>{
+    const row=document.createElement("div"); row.className="p"+(S.hero===i?" hero":"");
+    const no=document.createElement("div"); no.className="no"; no.textContent=i+1;
+    const hand=document.createElement("div"); hand.className="hand";
+    h.forEach((c,j)=>{
+      const el=cardEl(c,{sel:isActive("p",i,j)});
+      el.onclick=e=>{e.stopPropagation(); openPick("p",i,j);};
+      hand.appendChild(el);
+    });
+    const eq=document.createElement("div"); eq.className="eq"; eq.id="eq"+i;
+    eq.innerHTML='<span class="wait">—</span>';
+    row.append(no,hand,eq);
+    row.onclick=()=>{S.hero=i; render(); show();};
+    pl.appendChild(row);
+  });
+
+  /* --- board stem --- */
+  const stem=document.getElementById("stem"); stem.innerHTML="";
+  S.board.forEach((c,j)=>{
+    const el=cardEl(c,{sel:isActive("b",0,j)});
+    el.onclick=()=>openPick("b",0,j); stem.appendChild(el);
+  });
+  if(S.board.length<5){
+    const add=document.createElement("button");
+    add.className="card empty"; add.innerHTML='<span class="r">＋</span>';
+    if(isActive("b",0,S.board.length)) add.classList.add("sel");
+    add.onclick=()=>openPick("b",0,S.board.length);
+    stem.appendChild(add);
+  }
+  const names=["プリフロップ","","","フロップ","ターン","リバー"];
+  document.getElementById("street").textContent =
+    S.board.length===5 ? "リバーまで確定" : (names[S.board.length]||"") + " 　残り " + laneCount() + "枚";
+
+  /* --- run lanes --- */
+  const fork=document.getElementById("fork"); fork.innerHTML="";
+  const cols=["var(--run1)","var(--run2)","var(--run3)"];
+  for(let i=0;i<S.R;i++){
+    const lane=document.createElement("div"); lane.className="lane"; lane.style.setProperty("--laneC",cols[i]);
+    const n=document.createElement("div"); n.className="ln";
+    n.innerHTML=`ラン${i+1}<b>${laneCount()?laneCount()+"枚":"—"}</b>`;
+    const cc=document.createElement("div"); cc.className="cards";
+    if(laneCount()===0) cc.innerHTML='<span class="wait">配る札なし</span>';
+    S.runs[i].forEach((c,j)=>{
+      const el=cardEl(c,{sm:true,sel:isActive("r",i,j)});
+      el.onclick=()=>openPick("r",i,j); cc.appendChild(el);
+    });
+    lane.append(n,cc); fork.appendChild(lane);
+  }
+
+  /* --- dead --- */
+  const dr=document.getElementById("deadRow"); dr.innerHTML="";
+  document.getElementById("deadBtn").style.opacity=S.showDead?1:.6;
+  if(S.showDead){
+    const list=S.dead.concat([null]);
+    list.forEach((c,j)=>{
+      const el=cardEl(c,{sm:true,sel:isActive("d",0,j)});
+      el.onclick=()=>openPick("d",0,j); dr.appendChild(el);
+    });
+  }
+  document.querySelectorAll("#runSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.r===S.R));
+  document.querySelectorAll("#accSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.a===S.acc));
+}
+
+/* ============================ ピッカー ============================ */
+const slotName=k=>({p:"ホールカード",b:"共通ボード",r:"ランのカード",d:"デッドカード"}[k]);
+function openPick(k,i,j){ active={k,i,j}; pickRank=null; render(); drawPick(); document.getElementById("sheet").hidden=false; sheetPad(); }
+function closePick(){ active=null; document.getElementById("sheet").hidden=true; document.body.style.setProperty("--sheet-h","0px"); render(); }
+function sheetPad(){ const h=document.getElementById("sheet").offsetHeight; document.body.style.setProperty("--sheet-h",h+"px"); }
+
+function drawPick(){
+  if(!active) return;
+  document.getElementById("pickWhat").textContent=slotName(active.k);
+  const used=usedCards(), cur=getSlot();
+  const rk=document.getElementById("ranks"); rk.innerHTML="";
+  const order=[12,11,10,9,8,7,6,5,4,3,2,1,0];
+  order.forEach(r=>{
+    const b=document.createElement("button"); b.textContent=RANK[r];
+    b.setAttribute("aria-pressed",pickRank===r);
+    let free=false; for(let s=0;s<4;s++) if(!used.has(cid(r,s))||cid(r,s)===cur) free=true;
+    if(!free) b.disabled=true, b.style.opacity=.25;
+    b.onclick=()=>{pickRank=r; drawPick();};
+    rk.appendChild(b);
+  });
+  const su=document.getElementById("suits"); su.innerHTML="";
+  if(pickRank==null){ su.innerHTML='<span class="hint">ランクを選んでください</span>'; return; }
+  for(let s=0;s<4;s++){
+    const c=cid(pickRank,s), taken=used.has(c)&&c!==cur;
+    const el=cardEl(c,{dis:taken});
+    if(taken) el.classList.add("dead");
+    el.onclick=()=>setSlot(c);
+    su.appendChild(el);
+  }
+}
+function getSlot(){
+  const {k,i,j}=active;
+  if(k==="p") return S.players[i][j];
+  if(k==="b") return S.board[j] ?? null;
+  if(k==="r") return S.runs[i][j];
+  return S.dead[j] ?? null;
+}
+function setSlot(c){
+  const {k,i,j}=active;
+  if(k==="p") S.players[i][j]=c;
+  else if(k==="b"){ const before=S.board.length; S.board[j]=c; if(S.board.length!==before) S.runs=[[],[],[]]; }
+  else if(k==="r") S.runs[i][j]=c;
+  else S.dead[j]=c;
+  advance();
+}
+function clearSlot(){
+  if(!active) return;
+  const {k,i,j}=active;
+  if(k==="p") S.players[i][j]=null;
+  else if(k==="b"){ S.board.splice(j,1); S.runs=[[],[],[]]; active=null; }
+  else if(k==="r") S.runs[i][j]=null;
+  else S.dead.splice(j,1);
+  pickRank=null; render(); if(active) drawPick(); else closePick();
+  show();
+}
+function advance(){
+  if(active.k==="r"||active.k==="d"){ pickRank=null; render(); drawPick(); show(); return; }
+  const list=[];
+  S.players.forEach((h,i)=>h.forEach((c,j)=>list.push({k:"p",i,j,v:c})));
+  if(S.board.length<5) list.push({k:"b",i:0,j:S.board.length,v:null});
+  const nxt=list.find(x=>x.v==null);
+  pickRank=null;
+  if(nxt && !(active.k===nxt.k&&active.i===nxt.i&&active.j===nxt.j)){ active=nxt; render(); drawPick(); }
+  else { render(); drawPick(); }
+  show();
+}
+
+/* ============================ 計算 ============================ */
+function comb(n,k){ if(k<0||k>n) return 0; let r=1; for(let i=0;i<k;i++) r=r*(n-i)/(i+1); return Math.round(r); }
+
+function eachCombo(arr,k,needRest,cb){
+  const n=arr.length, pick=new Array(k), idx=new Array(k);
+  if(k===0){ cb(pick, needRest?arr.slice():null); return; }
+  (function go(start,d){
+    if(d===k){
+      let rest=null;
+      if(needRest){ rest=[]; for(let i=0,p=0;i<n;i++){ if(p<k&&idx[p]===i){p++;continue;} rest.push(arr[i]); } }
+      cb(pick,rest); return;
+    }
+    for(let i=start;i<=n-(k-d);i++){ idx[d]=i; pick[d]=arr[i]; go(i+1,d+1); }
+  })(0,0);
+}
+
+function makeSolver(hands, common, fixed, R){
+  const board=new Array(5), buf=new Array(7);
+  const N=hands.length;
+  const keyv=new Map(), outs=[];          // 結果ベクトルを内部IDに畳む
+  function outcomeId(run,pick){
+    let p=0;
+    for(const c of common) board[p++]=c;
+    for(const c of fixed[run]) board[p++]=c;
+    for(const c of pick) board[p++]=c;
+    let best=-1; const sc=new Array(N);
+    for(let i=0;i<N;i++){
+      buf[0]=hands[i][0]; buf[1]=hands[i][1];
+      for(let j=0;j<5;j++) buf[2+j]=board[j];
+      const v=ev7(buf); sc[i]=v; if(v>best) best=v;
+    }
+    let w=0; for(let i=0;i<N;i++) if(sc[i]===best) w++;
+    let key=""; const vec=new Float64Array(N);
+    for(let i=0;i<N;i++){ const s=sc[i]===best?1/w:0; vec[i]=s; key+=(sc[i]===best?(w===1?"1":"t"):"0"); }
+    let id=keyv.get(key);
+    if(id===undefined){ id=outs.length; keyv.set(key,id); outs.push(vec); }
+    return id;
+  }
+  return {outcomeId, outs, nOut:()=>outs.length};
+}
+
+function solve(){
+  const hands=S.players.filter(h=>h[0]!=null&&h[1]!=null);
+  if(hands.length<2 || hands.length!==S.players.length) return {err:"全員のホールカードを入れてください"};
+  const R=S.R, need=laneCount();
+  const fixed=[], ks=[];
+  for(let i=0;i<R;i++){ const f=S.runs[i].filter(c=>c!=null); fixed.push(f); ks.push(need-f.length); }
+
+  const used=usedCards(); const deck=[];
+  for(let c=0;c<52;c++) if(!used.has(c)) deck.push(c);
+  const D=deck.length;
+
+  const sol=makeSolver(hands,S.board,fixed,R);
+  const memo=[]; for(let i=0;i<R;i++) memo.push(new Map());
+  const key=p=>{let k=0; for(let i=0;i<p.length;i++) k=k*52+p[i]+1; return k;};
+  const oid=(run,pick)=>{ const kk=key(pick); let v=memo[run].get(kk); if(v===undefined){ v=sol.outcomeId(run,pick); memo[run].set(kk,v);} return v; };
+
+  // 列挙可能か判定
+  let leaves=1, av=D, maxPerRun=0;
+  for(let i=0;i<R;i++){ const c=comb(av,ks[i]); leaves*=c; av-=ks[i]; maxPerRun=Math.max(maxPerRun,comb(D,ks[i])); }
+  const exact = leaves<=2.5e6 && maxPerRun<=3e5;
+  const trials = S.acc? 500000 : 120000;
+
+  const counts=new Map();                 // 結果IDの組 → 回数
+  let total=0;
+  const idbuf=new Array(R);
+  const bump=()=>{ let k=0; for(let i=0;i<R;i++) k=k*4096+idbuf[i]; counts.set(k,(counts.get(k)||0)+1); total++; };
+
+  if(exact){
+    (function rec(run,avail){
+      if(run===R){ bump(); return; }
+      eachCombo(avail,ks[run],run<R-1,(pick,rest)=>{ idbuf[run]=oid(run,pick); rec(run+1,rest); });
+    })(0,deck);
+  }else{
+    const d=deck.slice(), pk=[];
+    for(let t=0;t<trials;t++){
+      let n=d.length, take=0;
+      for(let i=0;i<R;i++) take+=ks[i];
+      for(let i=0;i<take;i++){ const j=i+((Math.random()*(n-i))|0); const tmp=d[i]; d[i]=d[j]; d[j]=tmp; }
+      let p=0;
+      for(let i=0;i<R;i++){ pk.length=0; for(let q=0;q<ks[i];q++) pk.push(d[p++]); pk.sort((a,b)=>a-b); idbuf[i]=oid(i,pk); }
+      bump();
+    }
+  }
+
+  // 集計
+  const N=hands.length;
+  const outs=sol.outs;
+  const share=new Float64Array(N);        // 期待取り分
+  const dist=[]; for(let i=0;i<N;i++) dist.push(new Map());
+  const m1=new Float64Array(N), m1w=new Float64Array(N), m1t=new Float64Array(N); // ラン1の周辺分布
+  const sq=new Float64Array(N), sq1=new Float64Array(N);
+  for(const [k,cnt] of counts){
+    const ids=[]; let kk=k;
+    for(let i=R-1;i>=0;i--){ ids[i]=kk%4096; kk=Math.floor(kk/4096); }
+    const w=cnt/total;
+    for(let i=0;i<N;i++){
+      let s=0; for(let r=0;r<R;r++) s+=outs[ids[r]][i];
+      s/=R;
+      share[i]+=w*s; sq[i]+=w*s*s;
+      const q=Math.round(s*1e6);
+      dist[i].set(q,(dist[i].get(q)||0)+w);
+      const f=outs[ids[0]][i];
+      m1[i]+=w*f; sq1[i]+=w*f*f;
+      if(f===1) m1w[i]+=w; else if(f>0) m1t[i]+=w;
+    }
+  }
+  const sd=[], sd1=[];
+  for(let i=0;i<N;i++){ sd.push(Math.sqrt(Math.max(0,sq[i]-share[i]*share[i]))); sd1.push(Math.sqrt(Math.max(0,sq1[i]-m1[i]*m1[i]))); }
+
+  // ターン一発のときはアウツも出す
+  let outsList=null;
+  if(ks.every(k=>k===1) && need===1){
+    outsList=[];
+    for(const c of deck){ if(sol.outs[oid(0,[c])][S.hero]===1) outsList.push(c); }
+  }
+  return {hands,N,R,D,ks,need,exact,leaves,trials,share,dist,m1,m1w,m1t,sd,sd1,outsList,fixed};
+}
+
+/* ============================ 表示 ============================ */
+const pct=(x,d=1)=>(x*100).toFixed(d)+"%";
+function show(){
+  const box=document.getElementById("result");
+  const need=laneCount();
+  document.getElementById("deckNote").textContent = deckLine();
+  const res=solve();
+  if(res.err){ box.innerHTML=`<div class="blk"><div class="warn">${res.err}</div></div>`;
+    S.players.forEach((h,i)=>{const e=document.getElementById("eq"+i); if(e) e.innerHTML='<span class="wait">—</span>';});
+    return; }
+
+  // プレイヤー行
+  for(let i=0;i<res.N;i++){
+    const e=document.getElementById("eq"+i); if(!e) continue;
+    const col = i===S.hero ? "var(--ink)" : "var(--dim)";
+    e.innerHTML=`<span class="big" style="color:${col}">${pct(res.share[i])}</span>
+      <span class="sub">1本 ${pct(res.m1[i])}　${res.m1t[i]>0.0000005?"分け "+pct(res.m1t[i]):"&nbsp;"}</span>`;
+  }
+
+  const h=S.hero, R=res.R;
+  const hero=res.hands[h] ? cname(res.hands[h][0])+" "+cname(res.hands[h][1]) : "";
+  let html="";
+
+  if(res.need===0){
+    html+=`<div class="blk"><div class="warn">リバーまで確定しています。トワイスにしても両方のランが同じ結果になります。</div></div>`;
+  }
+
+  // 取り分の分布
+  const d=[...res.dist[h]].map(([q,p])=>[q/1e6,p]).sort((a,b)=>b[0]-a[0]).filter(x=>x[1]>1e-9);
+  const label=v=>{
+    if(R===1) return v===1?"勝ち":v===0?"負け":"チョップ";
+    const n=v*R;
+    if(Math.abs(n-R)<1e-9) return `${R}本とも勝ち`;
+    if(Math.abs(n)<1e-9)   return `${R}本とも負け`;
+    if(Math.abs(n-Math.round(n))<1e-9) return `${Math.round(n)}本だけ勝ち`;
+    return "チョップ込み";
+  };
+  const colorOf=v=>v>=0.999?"var(--good)":v<=0.001?"var(--bad)":"var(--run1)";
+  html+=`<div class="blk"><div class="blk-h"><span class="lbl">取り分の内訳 ／ プレイヤー${h+1}</span>
+      <span class="street">${hero}</span></div>`;
+  html+=`<div class="stack" style="margin-bottom:10px">`+
+    d.map(([v,p])=>`<i style="width:${(p*100).toFixed(3)}%;background:${colorOf(v)}"></i>`).join("")+`</div>`;
+  html+=`<div class="split">`;
+  d.forEach(([v,p])=>{
+    html+=`<div class="srow"><span class="sname">${label(v)} <i>ポットの${pct(v,v*100%1?1:0)}</i></span>
+      <span class="sval" style="color:${colorOf(v)}">${pct(p,2)}</span>
+      <span class="bar"><i style="width:${(p*100).toFixed(2)}%;background:${colorOf(v)}"></i></span></div>`;
+  });
+  html+=`</div></div>`;
+
+  // 期待値とブレ
+  html+=`<div class="blk"><div class="blk-h"><span class="lbl">期待値とブレ</span></div><div class="kv">`;
+  html+=`<span class="k">期待取り分</span><span class="v wide" style="color:var(--good)">${pct(res.share[h],2)}</span>`;
+  html+=`<span class="k">1本あたりの勝率</span><span class="v wide">${pct(res.m1[h],2)}${res.m1t[h]>1e-9?"（うち分け "+pct(res.m1t[h],2)+"）":""}</span>`;
+  if(R>1){
+    html+=`<span class="k">取り分のブレ（標準偏差）</span><span class="v">${pct(res.sd1[h],1)}</span>`+
+          `<span class="v" style="color:var(--run2)"><span class="arrow">→</span> ${pct(res.sd[h],1)}</span>`;
+  }
+  html+=`</div><div class="note">${R>1
+    ? "期待取り分は1本のときと同じです。トワイスで減るのはブレだけ（左が1本、右が"+R+"本）。"
+    : "ラン数を2本にすると、同じ期待値でブレがどれだけ減るかが出ます。"}</div></div>`;
+
+  // アウツ
+  if(res.outsList){
+    const n=res.outsList.length;
+    html+=`<div class="blk"><div class="blk-h"><span class="lbl">ヒットするカード</span>
+      <span class="street">${n} / ${res.D}枚</span></div><div class="outs">`;
+    html+=res.outsList.map(c=>{
+      const el=cardEl(c,{sm:true}); return el.outerHTML;
+    }).join("");
+    html+=`</div><div class="note">1本目でこの中の1枚が出ると、2本目は残り ${res.D-1}枚から ${n-1}枚になります（${pct(n/res.D,1)} → ${pct((n-1)/(res.D-1),1)}）。外れた場合は ${pct(n/(res.D-1),1)} に上がります。</div></div>`;
+  }
+
+  html+=`<div class="meta">${res.exact
+    ? "完全列挙 "+res.leaves.toLocaleString()+" 通り"
+    : "モンテカルロ "+res.trials.toLocaleString()+" 回（誤差およそ ±"+(196*Math.sqrt(0.25/res.trials)).toFixed(2)+"%）"}
+    <br>デッキ ${res.D}枚${S.dead.length?" ／ デッドカード "+S.dead.map(cname).join(" "):""}</div>`;
+  box.innerHTML=html;
+}
+function deckLine(){
+  const used=usedCards().size, D=52-used, need=laneCount();
+  if(need===0) return "配る札はありません。";
+  const parts=[]; let av=D;
+  for(let i=0;i<S.R;i++){
+    const k=need-S.runs[i].filter(c=>c!=null).length;
+    parts.push(`ラン${i+1}: ${av}枚から${k}枚`); av-=k;
+  }
+  return parts.join(" ／ ") + "　（1本目に出た札は2本目のデッキから除かれます）";
+}
+
+/* ============================ 操作 ============================ */
+document.getElementById("pPlus").onclick=()=>{ if(S.players.length<6){S.players.push([null,null]); render(); show();} };
+document.getElementById("pMinus").onclick=()=>{ if(S.players.length>2){S.players.pop(); if(S.hero>=S.players.length)S.hero=0; render(); show();} };
+document.querySelectorAll("#runSeg button").forEach(b=>b.onclick=()=>{S.R=+b.dataset.r; render(); show();});
+document.querySelectorAll("#accSeg button").forEach(b=>b.onclick=()=>{S.acc=+b.dataset.a; render(); show();});
+document.getElementById("recalc").onclick=()=>show();
+document.getElementById("deadBtn").onclick=()=>{S.showDead=!S.showDead; if(!S.showDead)S.dead=[]; render(); show();};
+const root=document.documentElement;
+const isDark=()=>{ const a=root.getAttribute("data-theme"); return a? a==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+document.getElementById("themeBtn").onclick=()=>{
+  const d=!isDark();
+  root.setAttribute("data-theme", d?"dark":"light");
+  try{ localStorage.setItem("twice-theme", d?"dark":"light"); }catch(e){}
+};
+
+const resetBtn=document.getElementById("reset");
+let armed=0;
+function disarm(){ if(armed) clearTimeout(armed); armed=0; resetBtn.textContent="リセット"; resetBtn.classList.remove("arm"); }
+resetBtn.onclick=()=>{
+  if(!armed){
+    resetBtn.textContent="もう一度押す"; resetBtn.classList.add("arm");
+    armed=setTimeout(disarm,3000);
+    return;
+  }
+  disarm();
+  S.players=S.players.map(()=>[null,null]); S.board=[]; S.runs=[[],[],[]]; S.dead=[]; S.showDead=false; S.hero=0;
+  closePick(); render(); show();
+};
+document.getElementById("pickClear").onclick=clearSlot;
+document.getElementById("pickClose").onclick=closePick;
+window.addEventListener("resize",()=>{ if(!document.getElementById("sheet").hidden) sheetPad(); });
+
+render(); show();
+</script>
+</body>
+</html>
