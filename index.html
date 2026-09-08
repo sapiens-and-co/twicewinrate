@@ -295,10 +295,11 @@ function ev7(cs){
 }
 
 /* ============================ 状態 ============================ */
+/* 起動時はすべて未入力。ホールカードから順に入れていく */
 const S = {
-  players:[[cid(12,0),cid(11,3)],[cid(7,1),cid(7,2)]],   // A♠K♣ / 9♥9♦
-  board:[cid(5,0),cid(2,2),cid(6,3),cid(10,0)],          // 7♠4♦8♣Q♠
-  runs:[[null],[null],[null]],
+  players:[[null,null],[null,null]],
+  board:[],
+  runs:[[],[],[]],
   dead:[], showDead:false, R:2, acc:0, hero:0
 };
 let active=null, pickRank=null;
