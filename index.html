@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ポーカー トゥワイス勝率 | Sapiens &amp; Co.</title>
-<meta name="description" content="ライブのトワイス（ラン・イット・ツワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
+<meta name="description" content="ライブのトゥワイス（ラン・イット・トゥワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
 <meta name="theme-color" content="#0A0E0D">
 <link rel="canonical" href="https://sapiens-and-co.com/twicewinrate/">
 <link rel="icon" href="./favicon-64.png" sizes="64x64">
@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <meta property="og:type" content="website">
 <meta property="og:title" content="ポーカー トゥワイス勝率">
-<meta property="og:description" content="ライブのトワイス（ラン・イット・ツワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
+<meta property="og:description" content="ライブのトゥワイス（ラン・イット・トゥワイス）専用の勝率計算機。1本目に出た札を2本目のデッキから除いて、両取り・1本ずつ・両落としの確率と、ブレがどれだけ減るかを出します。">
 <meta property="og:url" content="https://sapiens-and-co.com/twicewinrate/">
 <meta property="og:image" content="https://sapiens-and-co.com/twicewinrate/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -624,7 +624,7 @@ function show(){
   let html="";
 
   if(res.need===0){
-    html+=`<div class="blk"><div class="warn">リバーまで確定しています。トワイスにしても両方のランが同じ結果になります。</div></div>`;
+    html+=`<div class="blk"><div class="warn">リバーまで確定しています。トゥワイスにしても両方のランが同じ結果になります。</div></div>`;
   }
 
   // 取り分の分布
@@ -659,7 +659,7 @@ function show(){
           `<span class="v" style="color:var(--run2)"><span class="arrow">→</span> ${pct(res.sd[h],1)}</span>`;
   }
   html+=`</div><div class="note">${R>1
-    ? "期待取り分は1本のときと同じです。トワイスで減るのはブレだけ（左が1本、右が"+R+"本）。"
+    ? "期待取り分は1本のときと同じです。トゥワイスで減るのはブレだけ（左が1本、右が"+R+"本）。"
     : "ラン数を2本にすると、同じ期待値でブレがどれだけ減るかが出ます。"}</div></div>`;
 
   // アウツ
