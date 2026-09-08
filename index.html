@@ -454,13 +454,28 @@ function clearSlot(){
   pickRank=null; render(); if(active) drawPick(); else closePick();
   show();
 }
+/* ランの枠を上から順に並べる（ラン1の左→右、次にラン2） */
+function runSlots(){
+  const out=[];
+  for(let i=0;i<S.R;i++) for(let j=0;j<laneCount();j++) out.push({i,j,v:S.runs[i][j]});
+  return out;
+}
 function advance(){
-  if(active.k==="r"||active.k==="d"){ pickRank=null; render(); drawPick(); show(); return; }
+  pickRank=null;
+  /* ランの枠は、次の空き枠へ送る。全部埋まったらパネルを閉じて結果を見せる */
+  if(active.k==="r"){
+    const list=runSlots(), at=list.findIndex(x=>x.i===active.i&&x.j===active.j);
+    const nxt=list.slice(at+1).find(x=>x.v==null) || list.find(x=>x.v==null);
+    if(nxt){ active={k:"r",i:nxt.i,j:nxt.j}; render(); drawPick(); show(); }
+    else { closePick(); show(); }
+    return;
+  }
+  /* デッドカードは末尾に空き枠が増えるので、そこへ送る */
+  if(active.k==="d"){ active={k:"d",i:0,j:S.dead.length}; render(); drawPick(); show(); return; }
   const list=[];
   S.players.forEach((h,i)=>h.forEach((c,j)=>list.push({k:"p",i,j,v:c})));
   if(S.board.length<5) list.push({k:"b",i:0,j:S.board.length,v:null});
   const nxt=list.find(x=>x.v==null);
-  pickRank=null;
   if(nxt && !(active.k===nxt.k&&active.i===nxt.i&&active.j===nxt.j)){ active=nxt; render(); drawPick(); }
   else { render(); drawPick(); }
   show();
