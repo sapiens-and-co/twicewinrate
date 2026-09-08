@@ -108,9 +108,21 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 .p .no{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted)}
 .p.hero .no{color:var(--ring)}
 .p .hand{display:flex; gap:4px}
-.p .eq{display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0}
-.p .big{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:26px; line-height:1; font-variant-numeric:tabular-nums}
-.p .sub{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); white-space:nowrap}
+.p .eq{display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:0}
+/* ランごとに1段。段の高さはラン数で決める */
+.eqrow{display:flex; align-items:baseline; gap:6px; white-space:nowrap}
+.eqrow .rl{font-size:9.5px; font-weight:600; letter-spacing:.06em}
+.eqrow i{font-style:normal; font-family:"IBM Plex Mono",monospace; font-size:9.5px; color:var(--muted)}
+.eqrow .num{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; line-height:1.15;
+            font-variant-numeric:tabular-nums; color:var(--dim)}
+.p.hero .eqrow .num{color:var(--ink)}
+/* 両取りはランの下に小さく添える */
+.eqrow.scoop{margin-top:1px}
+.eqrow.scoop .rl{color:var(--muted)}
+.eq .eqrow.scoop .num{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:11px; color:var(--muted)}
+.eq.r1 .num{font-size:26px}
+.eq.r2 .num{font-size:20px}
+.eq.r3 .num{font-size:16px}
 .wait{font-size:11.5px; color:var(--muted)}
 
 /* ---------- board / fork ---------- */
@@ -271,6 +283,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 <script>
 "use strict";
 /* ============================ カード ============================ */
+const LANE = ["var(--run1)","var(--run2)","var(--run3)"];   // ランごとの色
 const RANK = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
 const SUIT = ["♠","♥","♦","♣"];
 const SUITC = ["sp","he","di","cl"];
@@ -380,9 +393,8 @@ function render(){
 
   /* --- run lanes --- */
   const fork=document.getElementById("fork"); fork.innerHTML="";
-  const cols=["var(--run1)","var(--run2)","var(--run3)"];
   for(let i=0;i<S.R;i++){
-    const lane=document.createElement("div"); lane.className="lane"; lane.style.setProperty("--laneC",cols[i]);
+    const lane=document.createElement("div"); lane.className="lane"; lane.style.setProperty("--laneC",LANE[i]);
     const n=document.createElement("div"); n.className="ln";
     n.innerHTML=`ラン${i+1}<b>${laneCount()?laneCount()+"枚":"—"}</b>`;
     const cc=document.createElement("div"); cc.className="cards";
@@ -580,7 +592,8 @@ function solve(){
   const outs=sol.outs;
   const share=new Float64Array(N);        // 期待取り分
   const dist=[]; for(let i=0;i<N;i++) dist.push(new Map());
-  const m1=new Float64Array(N), m1w=new Float64Array(N), m1t=new Float64Array(N); // ラン1の周辺分布
+  const mr=[], mrw=[], mrt=[];            // ランごとの周辺分布（勝率・単独勝ち・分け）
+  for(let r=0;r<R;r++){ mr.push(new Float64Array(N)); mrw.push(new Float64Array(N)); mrt.push(new Float64Array(N)); }
   const sq=new Float64Array(N), sq1=new Float64Array(N);
   for(const [k,cnt] of counts){
     const ids=[]; let kk=k;
@@ -592,11 +605,28 @@ function solve(){
       share[i]+=w*s; sq[i]+=w*s*s;
       const q=Math.round(s*1e6);
       dist[i].set(q,(dist[i].get(q)||0)+w);
-      const f=outs[ids[0]][i];
-      m1[i]+=w*f; sq1[i]+=w*f*f;
-      if(f===1) m1w[i]+=w; else if(f>0) m1t[i]+=w;
+      for(let r=0;r<R;r++){
+        const f=outs[ids[r]][i];
+        mr[r][i]+=w*f;
+        if(f===1) mrw[r][i]+=w; else if(f>0) mrt[r][i]+=w;
+        if(r===0) sq1[i]+=w*f*f;
+      }
     }
   }
+  /* 札を固定していないラン同士は数学的に同じ勝率になる。モンテカルロだと
+     誤差でわずかに食い違うので、平均を取って表示上も揃える */
+  const free=[]; for(let r=0;r<R;r++) if(fixed[r].length===0) free.push(r);
+  if(free.length>1){
+    for(let i=0;i<N;i++){
+      let a=0,b=0,c=0;
+      for(const r of free){ a+=mr[r][i]; b+=mrw[r][i]; c+=mrt[r][i]; }
+      a/=free.length; b/=free.length; c/=free.length;
+      for(const r of free){ mr[r][i]=a; mrw[r][i]=b; mrt[r][i]=c; }
+    }
+  }
+  const m1=mr[0], m1t=mrt[0];
+  const scoop=new Float64Array(N);        // 全ランで単独勝ち（＝両取り）
+  for(let i=0;i<N;i++) scoop[i]=dist[i].get(1000000)||0;
   const sd=[], sd1=[];
   for(let i=0;i<N;i++){ sd.push(Math.sqrt(Math.max(0,sq[i]-share[i]*share[i]))); sd1.push(Math.sqrt(Math.max(0,sq1[i]-m1[i]*m1[i]))); }
 
@@ -606,26 +636,33 @@ function solve(){
     outsList=[];
     for(const c of deck){ if(sol.outs[oid(0,[c])][S.hero]===1) outsList.push(c); }
   }
-  return {hands,N,R,D,ks,need,exact,leaves,trials,share,dist,m1,m1w,m1t,sd,sd1,outsList,fixed};
+  return {hands,N,R,D,ks,need,exact,leaves,trials,share,dist,scoop,mr,mrw,mrt,m1,m1t,sd,sd1,outsList,fixed};
 }
 
 /* ============================ 表示 ============================ */
-const pct=(x,d=1)=>(x*100).toFixed(d)+"%";
+const pct=(x,d=2)=>(x*100).toFixed(d)+"%";
 function show(){
   const box=document.getElementById("result");
   const need=laneCount();
   document.getElementById("deckNote").textContent = deckLine();
   const res=solve();
   if(res.err){ box.innerHTML=`<div class="blk"><div class="warn">${res.err}</div></div>`;
-    S.players.forEach((h,i)=>{const e=document.getElementById("eq"+i); if(e) e.innerHTML='<span class="wait">—</span>';});
+    S.players.forEach((h,i)=>{const e=document.getElementById("eq"+i); if(e){ e.className="eq"; e.innerHTML='<span class="wait">—</span>'; }});
     return; }
 
-  // プレイヤー行
+  // プレイヤー行。ランごとに1段ずつ出す
   for(let i=0;i<res.N;i++){
     const e=document.getElementById("eq"+i); if(!e) continue;
-    const col = i===S.hero ? "var(--ink)" : "var(--dim)";
-    e.innerHTML=`<span class="big" style="color:${col}">${pct(res.share[i])}</span>
-      <span class="sub">1本 ${pct(res.m1[i])}　${res.m1t[i]>0.0000005?"分け "+pct(res.m1t[i]):"&nbsp;"}</span>`;
+    e.className="eq r"+res.R;
+    let rows="";
+    for(let r=0;r<res.R;r++){
+      const tie=res.mrt[r][i]>0.0000005 ? `<i>分け ${pct(res.mrt[r][i])}</i>` : "";
+      rows+=`<span class="eqrow"><span class="rl" style="color:${LANE[r]}">${res.R>1?"ラン"+(r+1):"勝率"}</span>`
+          + `${tie}<span class="num">${pct(res.mr[r][i])}</span></span>`;
+    }
+    if(res.R>1) rows+=`<span class="eqrow scoop"><span class="rl">${res.R===2?"両取り":"全取り"}</span>`
+                     + `<span class="num">${pct(res.scoop[i])}</span></span>`;
+    e.innerHTML=rows;
   }
 
   const h=S.hero, R=res.R;
@@ -661,11 +698,16 @@ function show(){
 
   // 期待値とブレ
   html+=`<div class="blk"><div class="blk-h"><span class="lbl">期待値とブレ</span></div><div class="kv">`;
-  html+=`<span class="k">期待取り分</span><span class="v wide" style="color:var(--good)">${pct(res.share[h],2)}</span>`;
-  html+=`<span class="k">1本あたりの勝率</span><span class="v wide">${pct(res.m1[h],2)}${res.m1t[h]>1e-9?"（うち分け "+pct(res.m1t[h],2)+"）":""}</span>`;
+  for(let r=0;r<R;r++){
+    const t=res.mrt[r][h]>1e-9 ? "（うち分け "+pct(res.mrt[r][h],2)+"）" : "";
+    html+=`<span class="k">${R>1?"ラン"+(r+1):"1本"}の勝率</span>`
+        + `<span class="v wide" style="color:${LANE[r]}">${pct(res.mr[r][h],2)}${t}</span>`;
+  }
+  html+=`<span class="k">${R>1?R+"本合計の期待取り分":"期待取り分"}</span>`
+      + `<span class="v wide" style="color:var(--good)">${pct(res.share[h],2)}</span>`;
   if(R>1){
-    html+=`<span class="k">取り分のブレ（標準偏差）</span><span class="v">${pct(res.sd1[h],1)}</span>`+
-          `<span class="v" style="color:var(--run2)"><span class="arrow">→</span> ${pct(res.sd[h],1)}</span>`;
+    html+=`<span class="k">取り分のブレ（標準偏差）</span><span class="v">${pct(res.sd1[h])}</span>`+
+          `<span class="v" style="color:var(--run2)"><span class="arrow">→</span> ${pct(res.sd[h])}</span>`;
   }
   html+=`</div><div class="note">${R>1
     ? "期待取り分は1本のときと同じです。トゥワイスで減るのはブレだけ（左が1本、右が"+R+"本）。"
@@ -679,7 +721,7 @@ function show(){
     html+=res.outsList.map(c=>{
       const el=cardEl(c,{sm:true}); return el.outerHTML;
     }).join("");
-    html+=`</div><div class="note">1本目でこの中の1枚が出ると、2本目は残り ${res.D-1}枚から ${n-1}枚になります（${pct(n/res.D,1)} → ${pct((n-1)/(res.D-1),1)}）。外れた場合は ${pct(n/(res.D-1),1)} に上がります。</div></div>`;
+    html+=`</div><div class="note">1本目でこの中の1枚が出ると、2本目は残り ${res.D-1}枚から ${n-1}枚になります（${pct(n/res.D)} → ${pct((n-1)/(res.D-1))}）。外れた場合は ${pct(n/(res.D-1))} に上がります。</div></div>`;
   }
 
   html+=`<div class="meta">${res.exact
