@@ -66,7 +66,7 @@ body{
   background:var(--bg); color:var(--ink);
   font-family:"IBM Plex Sans JP",system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
   font-size:14px; line-height:1.6; margin:0;
-  padding:14px 12px calc(var(--sheet-h,0px) + 40px);
+  padding:14px 12px 40px;
   -webkit-text-size-adjust:100%;
 }
 .wrap{max-width:452px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
@@ -173,12 +173,12 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 .warn{font-size:12px; color:var(--run1); background:color-mix(in srgb, var(--run1) 12%, transparent);
       border:1px solid color-mix(in srgb, var(--run1) 35%, transparent); border-radius:8px; padding:7px 9px}
 
-/* ---------- picker sheet ---------- */
-.sheet{position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line2);
-       box-shadow:0 -10px 30px -18px #000; z-index:9; padding:9px 12px calc(10px + env(safe-area-inset-bottom))}
-.sheet-in{max-width:452px; margin:0 auto; display:flex; flex-direction:column; gap:8px}
-.sheet-h{display:flex; align-items:center; justify-content:space-between; gap:8px}
+/* ---------- カード入力パネル ---------- */
+.pad{display:flex; flex-direction:column; gap:8px}
 .suits{display:flex; gap:7px; align-items:center; min-height:52px}
+.suitcards{display:flex; gap:7px; align-items:center; flex:1; min-width:0}
+#pickClear{margin-left:auto}
+.pad.off .ranks button, .pad.off .suits{opacity:.4}
 .suits .hint{font-size:12px; color:var(--muted)}
 .ranks{display:grid; grid-template-columns:repeat(7,1fr); gap:4px}
 .ranks button{background:var(--panel2); border:1px solid var(--line); border-radius:7px; padding:9px 0;
@@ -222,6 +222,16 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
     <div class="boards" id="boards"></div>
   </div>
 
+  <!-- カード入力。ボードの下に置いたまま動かさない -->
+  <div class="blk pad">
+    <div class="suits">
+      <div class="suitcards" id="suits"></div>
+      <button class="btn" id="pickClear">クリア</button>
+      <button class="btn" id="pickClose">閉じる</button>
+    </div>
+    <div class="ranks" id="ranks"></div>
+  </div>
+
   <!-- settings -->
   <div class="blk">
     <div class="row">
@@ -249,19 +259,6 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
   </div>
 </div>
 
-<div class="sheet" id="sheet" hidden>
-  <div class="sheet-in">
-    <div class="sheet-h">
-      <span class="lbl" id="pickWhat">カードを選択</span>
-      <div class="row" style="gap:6px">
-        <button class="btn" id="pickClear">クリア</button>
-        <button class="btn" id="pickClose">閉じる</button>
-      </div>
-    </div>
-    <div class="suits" id="suits"></div>
-    <div class="ranks" id="ranks"></div>
-  </div>
-</div>
 
 <script>
 "use strict";
@@ -391,31 +388,32 @@ function render(){
       el.onclick=()=>openPick("d",0,j); dr.appendChild(el);
     });
   }
+  drawPick();
   document.querySelectorAll("#runSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.r===S.R));
   document.querySelectorAll("#accSeg button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.a===S.acc));
 }
 
 /* ============================ ピッカー ============================ */
-const slotName=k=>({p:"ホールカード",b:"共通ボード",r:"ランのカード",d:"デッドカード"}[k]);
-function openPick(k,i,j){ active={k,i,j}; pickRank=null; render(); drawPick(); document.getElementById("sheet").hidden=false; sheetPad(); }
-function closePick(){ active=null; document.getElementById("sheet").hidden=true; document.body.style.setProperty("--sheet-h","0px"); render(); }
-function sheetPad(){ const h=document.getElementById("sheet").offsetHeight; document.body.style.setProperty("--sheet-h",h+"px"); }
+/* パネルは出しっぱなし。開く／閉じるは「どのマスを狙っているか」の切り替えだけ */
+function openPick(k,i,j){ active={k,i,j}; pickRank=null; render(); }
+function closePick(){ active=null; pickRank=null; render(); }
 
 function drawPick(){
-  if(!active) return;
-  document.getElementById("pickWhat").textContent=slotName(active.k);
-  const used=usedCards(), cur=getSlot();
+  const pad=document.querySelector(".pad");
+  pad.classList.toggle("off", !active);
+  const used=usedCards(), cur=active?getSlot():null;
   const rk=document.getElementById("ranks"); rk.innerHTML="";
   const order=[12,11,10,9,8,7,6,5,4,3,2,1,0];
   order.forEach(r=>{
     const b=document.createElement("button"); b.textContent=RANK[r];
     b.setAttribute("aria-pressed",pickRank===r);
     let free=false; for(let s=0;s<4;s++) if(!used.has(cid(r,s))||cid(r,s)===cur) free=true;
-    if(!free) b.disabled=true, b.style.opacity=.25;
+    if(!free || !active) b.disabled=true, b.style.opacity=.25;
     b.onclick=()=>{pickRank=r; drawPick();};
     rk.appendChild(b);
   });
   const su=document.getElementById("suits"); su.innerHTML="";
+  if(!active){ su.innerHTML='<span class="hint">マスをタップしてください</span>'; return; }
   if(pickRank==null){ su.innerHTML='<span class="hint">ランクを選んでください</span>'; return; }
   for(let s=0;s<4;s++){
     const c=cid(pickRank,s), taken=used.has(c)&&c!==cur;
@@ -465,7 +463,7 @@ function clearSlot(){
   const shift=(k==="d") && removed;
   const nxt=after[Math.min(shift?at:at+1, after.length-1)];
   pickRank=null;
-  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); drawPick(); }
+  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); }
   else closePick();
   show();
 }
@@ -479,12 +477,12 @@ function slotVal(x){
    ランの枠はランの中だけで送る（勝手にボードへ飛ばさない） */
 function advance(){
   pickRank=null;
-  if(active.k==="d"){ active={k:"d",i:0,j:S.dead.length}; render(); drawPick(); show(); return; }
+  if(active.k==="d"){ active={k:"d",i:0,j:S.dead.length}; render(); show(); return; }
   const allow = active.k==="p" ? ["p","b"] : active.k==="b" ? ["b"] : ["r"];
   const L=allSlots();
   const at=L.findIndex(x=>x.k===active.k&&x.i===active.i&&x.j===active.j);
   const nxt=L.slice(at+1).find(x=>allow.indexOf(x.k)>=0 && slotVal(x)==null);
-  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); drawPick(); show(); }
+  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); show(); }
   else { closePick(); show(); }
 }
 
@@ -750,8 +748,8 @@ resetBtn.onclick=()=>{
 };
 document.getElementById("pickClear").onclick=clearSlot;
 document.getElementById("pickClose").onclick=closePick;
-window.addEventListener("resize",()=>{ if(!document.getElementById("sheet").hidden) sheetPad(); });
-
+/* 起動時は1人目の1枚目を狙った状態にしておく。開いてすぐ打ち始められる */
+active={k:"p",i:0,j:0};
 render(); show();
 </script>
 <script>
