@@ -691,8 +691,8 @@ function show(){
           `<span class="v" style="color:var(--run2)"><span class="arrow">→</span> ${pct(res.sd[h])}</span>`;
   }
   html+=`</div><div class="note">${R>1
-    ? "期待取り分は1本のときと同じです。トゥワイスで減るのはブレだけ（左が1本、右が"+R+"本）。"
-    : "ラン数を2本にすると、同じ期待値でブレがどれだけ減るかが出ます。"}</div></div>`;
+    ? "期待取り分は1本のときと同じ。減るのはブレだけです。"
+    : "2本にすると、同じ期待値でブレが減ります。"}</div></div>`;
 
   // アウツ
   if(res.outsList){
