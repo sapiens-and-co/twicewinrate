@@ -23,8 +23,10 @@ self.addEventListener("fetch", e => {
 
   /* ページ本体は「まずネット、駄目ならキャッシュ」。オンラインなら常に最新が出る */
   if (req.mode === "navigate") {
+    /* GitHub Pages が max-age=600 を付けるので、ブラウザのHTTPキャッシュを
+       迂回して取りに行く。そうしないと更新が最大10分遅れる */
     e.respondWith(
-      fetch(req).then(res => {
+      fetch(new Request(req.url, { cache: "reload" })).then(res => {
         const copy = res.clone();
         caches.open(CORE).then(c => c.put("./index.html", copy)).catch(() => {});
         return res;
