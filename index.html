@@ -74,8 +74,8 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 :focus-visible{outline:2px solid var(--ring); outline-offset:2px; border-radius:4px}
 
 /* ---------- head ---------- */
-.head{display:flex; align-items:center; justify-content:space-between; gap:10px}
-.brand{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:21px; letter-spacing:.01em; line-height:1.1}
+.head{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap}
+.brand{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:19px; letter-spacing:.01em; line-height:1.1}
 .brand em{font-style:normal; color:var(--run2)}
 
 /* ---------- generic block ---------- */
@@ -143,7 +143,8 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 .seg button[aria-pressed="true"]{background:var(--panel2); color:var(--ink); box-shadow:0 0 0 1px var(--line2)}
 .btn{border:1px solid var(--line2); border-radius:9px; padding:6px 12px; font-size:12.5px; color:var(--dim); background:var(--panel2)}
 .btn:active{background:var(--sunk)}
-.head .btn{white-space:nowrap; flex:none}
+.head .btn{white-space:nowrap; flex:none; padding:6px 10px}
+.head .btn.icon{padding:6px 8px}
 @media(max-width:359px){
   #themeBtn{font-size:0; padding:6px 9px}
   #themeBtn::before{content:"◐"; font-size:14px; line-height:1.2; display:block}
@@ -199,21 +200,16 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 <div class="wrap">
   <div class="head">
     <div class="brand">Run It <em>Twice</em></div>
-    <div class="row" style="gap:6px; flex-wrap:nowrap">
+    <div class="row" style="gap:5px; flex-wrap:nowrap">
       <button class="btn" id="themeBtn">配色切替</button>
       <button class="btn" id="reset">リセット</button>
+      <button class="btn icon" id="pMinus" aria-label="プレイヤーを減らす">−</button>
+      <button class="btn icon" id="pPlus" aria-label="プレイヤーを増やす">＋</button>
     </div>
   </div>
 
   <!-- players -->
   <div class="blk">
-    <div class="blk-h">
-      <span class="lbl">プレイヤー</span>
-      <div class="row" style="gap:5px">
-        <button class="btn icon" id="pMinus" aria-label="プレイヤーを減らす">−</button>
-        <button class="btn icon" id="pPlus" aria-label="プレイヤーを増やす">＋</button>
-      </div>
-    </div>
     <div class="plist" id="players"></div>
   </div>
 
@@ -633,7 +629,7 @@ const pct=(x,d=2)=>(x*100).toFixed(d)+"%";
 function show(){
   const box=document.getElementById("result");
   const res=solve();
-  if(res.err){ box.innerHTML=`<div class="blk"><div class="warn">${res.err}</div></div>`;
+  if(res.err){ box.innerHTML="";
     S.players.forEach((h,i)=>{const e=document.getElementById("eq"+i); if(e){ e.className="eq"; e.innerHTML='<span class="wait">—</span>'; }});
     return; }
 
