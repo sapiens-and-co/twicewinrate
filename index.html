@@ -81,7 +81,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 /* ---------- generic block ---------- */
 .blk{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 12px; box-shadow:var(--shadow)}
 .blk-h{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:9px}
-.lbl{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:600}
+.lbl{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; white-space:nowrap}
 
 /* ---------- cards ---------- */
 .card{
@@ -139,7 +139,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 /* ---------- controls ---------- */
 .row{display:flex; gap:7px; align-items:center; flex-wrap:wrap}
 .seg{display:flex; background:var(--sunk); border:1px solid var(--line); border-radius:9px; padding:2px; gap:2px}
-.seg button{padding:5px 11px; border-radius:7px; font-size:12.5px; color:var(--dim); font-weight:500}
+.seg button{padding:5px 9px; border-radius:7px; font-size:12.5px; color:var(--dim); font-weight:500; white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--panel2); color:var(--ink); box-shadow:0 0 0 1px var(--line2)}
 .btn{border:1px solid var(--line2); border-radius:9px; padding:6px 12px; font-size:12.5px; color:var(--dim); background:var(--panel2)}
 .btn:active{background:var(--sunk)}
@@ -224,7 +224,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 
   <!-- settings -->
   <div class="blk">
-    <div class="row" style="flex-wrap:nowrap">
+    <div class="row">
       <span class="lbl">ラン数</span>
       <div class="seg" id="runSeg">
         <button data-r="1">1本</button><button data-r="2">2本</button><button data-r="3">3本</button>
