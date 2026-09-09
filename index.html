@@ -126,15 +126,14 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 .eq.r3 .num{font-size:16px}
 .wait{font-size:11.5px; color:var(--muted)}
 
-/* ---------- board / fork ---------- */
-.stem{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+/* ---------- board ---------- */
+.boards{display:flex; flex-direction:column; gap:7px}
+.brow{display:grid; grid-template-columns:38px auto; align-items:center; gap:8px}
+.blbl{font-size:10.5px; font-weight:600; letter-spacing:.04em; color:var(--muted)}
+.bcards{display:flex; gap:5px}
+/* ランの枠が空なら、そのマスはボードの札をそのまま使う。それを薄く見せる */
+.card.ghost{opacity:.3}
 .street{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); margin-left:auto}
-.fork{margin-top:10px; display:flex; flex-direction:column; gap:8px; position:relative}
-.lane{display:grid; grid-template-columns:52px 1fr; align-items:center; gap:9px;
-      border-left:2px solid var(--laneC); border-radius:0 8px 8px 0; padding:6px 6px 6px 9px; background:var(--sunk)}
-.lane .ln{font-size:10.5px; font-weight:600; letter-spacing:.08em; color:var(--laneC)}
-.lane .ln b{display:block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:500; color:var(--muted); letter-spacing:0}
-.lane .cards{display:flex; gap:5px; flex-wrap:wrap}
 .note{font-size:11.5px; color:var(--muted); margin-top:9px; line-height:1.5}
 
 /* ---------- controls ---------- */
@@ -220,12 +219,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 
   <!-- board -->
   <div class="blk">
-    <div class="blk-h">
-      <span class="lbl">共通ボード ／ オールイン時点</span>
-      <span class="street" id="street"></span>
-    </div>
-    <div class="stem" id="stem"></div>
-    <div class="fork" id="fork"></div>
+    <div class="boards" id="boards"></div>
   </div>
 
   <!-- settings -->
@@ -308,28 +302,32 @@ function ev7(cs){
 /* 起動時はすべて未入力。ホールカードから順に入れていく */
 const S = {
   players:[[null,null],[null,null]],
-  board:[],
-  runs:[[],[],[]],
+  board:[null,null,null,null,null],                     // 5マス固定（フロップ3・ターン・リバー）
+  runs:[0,1,2].map(()=>[null,null,null,null,null]),     // ラン2以降の上書き。空きはボードの札を使う
   dead:[], showDead:false, R:2, acc:0, hero:0
 };
 let active=null, pickRank=null;
 
-const laneCount = () => 5 - S.board.length;
 function usedCards(){
   const u=new Set();
   S.players.forEach(h=>h.forEach(c=>{if(c!=null)u.add(c)}));
-  S.board.forEach(c=>u.add(c));
-  for(let i=0;i<S.R;i++) S.runs[i].forEach(c=>{if(c!=null)u.add(c)});
+  S.board.forEach(c=>{if(c!=null)u.add(c)});
+  for(let i=1;i<S.R;i++) S.runs[i].forEach(c=>{if(c!=null)u.add(c)});
   S.dead.forEach(c=>u.add(c));
   return u;
 }
+/* ランrのボード。ラン1はボードそのもの。ラン2以降は自分のマスが空なら
+   ボードの札をそのまま使う。両方空のマスは、ランごとに別々に配る */
+function boardFor(r){
+  const b=[];
+  for(let j=0;j<5;j++){ const own = r===0 ? null : S.runs[r][j]; b.push(own!=null?own:S.board[j]); }
+  return b;
+}
+const knownFor = r => boardFor(r).filter(c=>c!=null);
 function syncLanes(){
-  const n=laneCount();
-  for(let i=0;i<3;i++){
-    const a=S.runs[i];
-    while(a.length>n) a.pop();
-    while(a.length<n) a.push(null);
-  }
+  const fix=a=>[0,1,2,3,4].map(j=>(a&&a[j]!=null)?a[j]:null);
+  S.board=fix(S.board);
+  for(let i=0;i<3;i++) S.runs[i]=fix(S.runs[i]);
 }
 
 /* ============================ 描画 ============================ */
@@ -364,36 +362,24 @@ function render(){
   });
 
   /* --- board stem --- */
-  const stem=document.getElementById("stem"); stem.innerHTML="";
-  S.board.forEach((c,j)=>{
-    const el=cardEl(c,{sel:isActive("b",0,j)});
-    el.onclick=()=>openPick("b",0,j); stem.appendChild(el);
-  });
-  if(S.board.length<5){
-    const add=document.createElement("button");
-    add.className="card empty"; add.innerHTML='<span class="r">＋</span>';
-    if(isActive("b",0,S.board.length)) add.classList.add("sel");
-    add.onclick=()=>openPick("b",0,S.board.length);
-    stem.appendChild(add);
-  }
-  const names=["プリフロップ","","","フロップ","ターン","リバー"];
-  document.getElementById("street").textContent =
-    S.board.length===5 ? "リバーまで確定" : (names[S.board.length]||"") + " 　残り " + laneCount() + "枚";
-
-  /* --- run lanes --- */
-  const fork=document.getElementById("fork"); fork.innerHTML="";
-  for(let i=0;i<S.R;i++){
-    const lane=document.createElement("div"); lane.className="lane"; lane.style.setProperty("--laneC",LANE[i]);
-    const n=document.createElement("div"); n.className="ln";
-    n.innerHTML=`ラン${i+1}<b>${laneCount()?laneCount()+"枚":"—"}</b>`;
-    const cc=document.createElement("div"); cc.className="cards";
-    if(laneCount()===0) cc.innerHTML='<span class="wait">配る札なし</span>';
-    S.runs[i].forEach((c,j)=>{
-      const el=cardEl(c,{sm:true,sel:isActive("r",i,j)});
-      el.onclick=()=>openPick("r",i,j); cc.appendChild(el);
-    });
-    lane.append(n,cc); fork.appendChild(lane);
-  }
+  const bd=document.getElementById("boards"); bd.innerHTML="";
+  const mkRow=(label,color,kind,ri)=>{
+    const row=document.createElement("div"); row.className="brow";
+    const l=document.createElement("span"); l.className="blbl"; l.textContent=label;
+    if(color) l.style.color=color;
+    const cc=document.createElement("div"); cc.className="bcards";
+    for(let j=0;j<5;j++){
+      let c, ghost=false;
+      if(kind==="b") c=S.board[j];
+      else { c=S.runs[ri][j]; if(c==null && S.board[j]!=null){ c=S.board[j]; ghost=true; } }
+      const el=cardEl(c,{sel:isActive(kind,ri,j), cls:ghost?"ghost":""});
+      el.onclick=()=>openPick(kind,ri,j);
+      cc.appendChild(el);
+    }
+    row.append(l,cc); bd.appendChild(row);
+  };
+  mkRow("ボード","","b",0);
+  for(let i=1;i<S.R;i++) mkRow("ラン"+(i+1),LANE[i],"r",i);
 
   /* --- dead --- */
   const dr=document.getElementById("deadRow"); dr.innerHTML="";
@@ -449,7 +435,7 @@ function getSlot(){
 function setSlot(c){
   const {k,i,j}=active;
   if(k==="p") S.players[i][j]=c;
-  else if(k==="b"){ const before=S.board.length; S.board[j]=c; if(S.board.length!==before) S.runs=[[],[],[]]; }
+  else if(k==="b") S.board[j]=c;
   else if(k==="r") S.runs[i][j]=c;
   else S.dead[j]=c;
   advance();
@@ -458,14 +444,13 @@ function setSlot(c){
 function allSlots(){
   const L=[];
   S.players.forEach((h,i)=>h.forEach((c,j)=>L.push({k:"p",i,j})));
-  for(let j=0;j<S.board.length;j++) L.push({k:"b",i:0,j});
-  if(S.board.length<5) L.push({k:"b",i:0,j:S.board.length});
-  for(let i=0;i<S.R;i++) for(let j=0;j<laneCount();j++) L.push({k:"r",i,j});
+  for(let j=0;j<5;j++) L.push({k:"b",i:0,j});
+  for(let i=1;i<S.R;i++) for(let j=0;j<5;j++) L.push({k:"r",i,j});
   if(S.showDead) for(let j=0;j<=S.dead.length;j++) L.push({k:"d",i:0,j});
   return L;
 }
 /* 押すたびに1枚消して次の枠へ送る。押しっぱなしで端から消していける。
-   ⚠ 共通ボードとデッドカードは詰まる配列なので、消した位置に次の札が来る */
+   ⚠ デッドカードだけは詰まる配列なので、消した位置に次の札が来る */
 function clearSlot(){
   if(!active) return;
   const {k,i,j}=active;
@@ -473,42 +458,34 @@ function clearSlot(){
   let removed=false;
   if(k==="p"){ removed=S.players[i][j]!=null; S.players[i][j]=null; }
   else if(k==="r"){ removed=S.runs[i][j]!=null; S.runs[i][j]=null; }
-  else if(k==="b" && j<S.board.length){ S.board.splice(j,1); S.runs=[[],[],[]]; removed=true; }
+  else if(k==="b"){ removed=S.board[j]!=null; S.board[j]=null; }
   else if(k==="d" && j<S.dead.length){ S.dead.splice(j,1); removed=true; }
   syncLanes();
   const after=allSlots();
-  const shift=(k==="b"||k==="d") && removed;
+  const shift=(k==="d") && removed;
   const nxt=after[Math.min(shift?at:at+1, after.length-1)];
   pickRank=null;
   if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); drawPick(); }
   else closePick();
   show();
 }
-/* ランの枠を上から順に並べる（ラン1の左→右、次にラン2） */
-function runSlots(){
-  const out=[];
-  for(let i=0;i<S.R;i++) for(let j=0;j<laneCount();j++) out.push({i,j,v:S.runs[i][j]});
-  return out;
+function slotVal(x){
+  if(x.k==="p") return S.players[x.i][x.j];
+  if(x.k==="b") return S.board[x.j];
+  if(x.k==="r") return S.runs[x.i][x.j];
+  return S.dead[x.j] ?? null;
 }
+/* 1枚置いたら次の空き枠へ。ホールカードからボードまでは続けて送り、
+   ランの枠はランの中だけで送る（勝手にボードへ飛ばさない） */
 function advance(){
   pickRank=null;
-  /* ランの枠は、次の空き枠へ送る。全部埋まったらパネルを閉じて結果を見せる */
-  if(active.k==="r"){
-    const list=runSlots(), at=list.findIndex(x=>x.i===active.i&&x.j===active.j);
-    const nxt=list.slice(at+1).find(x=>x.v==null) || list.find(x=>x.v==null);
-    if(nxt){ active={k:"r",i:nxt.i,j:nxt.j}; render(); drawPick(); show(); }
-    else { closePick(); show(); }
-    return;
-  }
-  /* デッドカードは末尾に空き枠が増えるので、そこへ送る */
   if(active.k==="d"){ active={k:"d",i:0,j:S.dead.length}; render(); drawPick(); show(); return; }
-  const list=[];
-  S.players.forEach((h,i)=>h.forEach((c,j)=>list.push({k:"p",i,j,v:c})));
-  if(S.board.length<5) list.push({k:"b",i:0,j:S.board.length,v:null});
-  const nxt=list.find(x=>x.v==null);
-  if(nxt && !(active.k===nxt.k&&active.i===nxt.i&&active.j===nxt.j)){ active=nxt; render(); drawPick(); }
-  else { render(); drawPick(); }
-  show();
+  const allow = active.k==="p" ? ["p","b"] : active.k==="b" ? ["b"] : ["r"];
+  const L=allSlots();
+  const at=L.findIndex(x=>x.k===active.k&&x.i===active.i&&x.j===active.j);
+  const nxt=L.slice(at+1).find(x=>allow.indexOf(x.k)>=0 && slotVal(x)==null);
+  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); drawPick(); show(); }
+  else { closePick(); show(); }
 }
 
 /* ============================ 計算 ============================ */
@@ -527,14 +504,13 @@ function eachCombo(arr,k,needRest,cb){
   })(0,0);
 }
 
-function makeSolver(hands, common, fixed, R){
+function makeSolver(hands, known){
   const board=new Array(5), buf=new Array(7);
   const N=hands.length;
   const keyv=new Map(), outs=[];          // 結果ベクトルを内部IDに畳む
   function outcomeId(run,pick){
     let p=0;
-    for(const c of common) board[p++]=c;
-    for(const c of fixed[run]) board[p++]=c;
+    for(const c of known[run]) board[p++]=c;
     for(const c of pick) board[p++]=c;
     let best=-1; const sc=new Array(N);
     for(let i=0;i<N;i++){
@@ -555,15 +531,15 @@ function makeSolver(hands, common, fixed, R){
 function solve(){
   const hands=S.players.filter(h=>h[0]!=null&&h[1]!=null);
   if(hands.length<2 || hands.length!==S.players.length) return {err:"全員のホールカードを入れてください"};
-  const R=S.R, need=laneCount();
-  const fixed=[], ks=[];
-  for(let i=0;i<R;i++){ const f=S.runs[i].filter(c=>c!=null); fixed.push(f); ks.push(need-f.length); }
+  const R=S.R;
+  const known=[], ks=[];
+  for(let r=0;r<R;r++){ const b=knownFor(r); known.push(b); ks.push(5-b.length); }
 
   const used=usedCards(); const deck=[];
   for(let c=0;c<52;c++) if(!used.has(c)) deck.push(c);
   const D=deck.length;
 
-  const sol=makeSolver(hands,S.board,fixed,R);
+  const sol=makeSolver(hands,known);
   const memo=[]; for(let i=0;i<R;i++) memo.push(new Map());
   const key=p=>{let k=0; for(let i=0;i<p.length;i++) k=k*52+p[i]+1; return k;};
   const oid=(run,pick)=>{ const kk=key(pick); let v=memo[run].get(kk); if(v===undefined){ v=sol.outcomeId(run,pick); memo[run].set(kk,v);} return v; };
@@ -624,13 +600,19 @@ function solve(){
   }
   /* 札を固定していないラン同士は数学的に同じ勝率になる。モンテカルロだと
      誤差でわずかに食い違うので、平均を取って表示上も揃える */
-  const free=[]; for(let r=0;r<R;r++) if(fixed[r].length===0) free.push(r);
-  if(free.length>1){
+  const groups=new Map();
+  for(let r=0;r<R;r++){
+    const gk=known[r].slice().sort((a,b)=>a-b).join(",");
+    if(!groups.has(gk)) groups.set(gk,[]);
+    groups.get(gk).push(r);
+  }
+  for(const g of groups.values()){
+    if(g.length<2) continue;
     for(let i=0;i<N;i++){
       let a=0,b=0,c=0;
-      for(const r of free){ a+=mr[r][i]; b+=mrw[r][i]; c+=mrt[r][i]; }
-      a/=free.length; b/=free.length; c/=free.length;
-      for(const r of free){ mr[r][i]=a; mrw[r][i]=b; mrt[r][i]=c; }
+      for(const r of g){ a+=mr[r][i]; b+=mrw[r][i]; c+=mrt[r][i]; }
+      a/=g.length; b/=g.length; c/=g.length;
+      for(const r of g){ mr[r][i]=a; mrw[r][i]=b; mrt[r][i]=c; }
     }
   }
   const m1=mr[0], m1t=mrt[0];
@@ -641,11 +623,11 @@ function solve(){
 
   // ターン一発のときはアウツも出す
   let outsList=null;
-  if(ks.every(k=>k===1) && need===1){
+  if(ks.every(k=>k===1)){
     outsList=[];
     for(const c of deck){ if(sol.outs[oid(0,[c])][S.hero]===1) outsList.push(c); }
   }
-  return {hands,N,R,D,ks,need,exact,leaves,trials,share,dist,scoop,mr,mrw,mrt,m1,m1t,sd,sd1,outsList,fixed};
+  return {hands,N,R,D,ks,exact,leaves,trials,share,dist,scoop,mr,mrw,mrt,m1,m1t,sd,sd1,outsList,known};
 }
 
 /* ============================ 表示 ============================ */
@@ -676,7 +658,7 @@ function show(){
   const hero=res.hands[h] ? cname(res.hands[h][0])+" "+cname(res.hands[h][1]) : "";
   let html="";
 
-  if(res.need===0){
+  if(res.ks.every(k=>k===0)){
     html+=`<div class="blk"><div class="warn">リバーまで確定しています。トゥワイスにしても両方のランが同じ結果になります。</div></div>`;
   }
 
@@ -763,7 +745,7 @@ resetBtn.onclick=()=>{
     return;
   }
   disarm();
-  S.players=S.players.map(()=>[null,null]); S.board=[]; S.runs=[[],[],[]]; S.dead=[]; S.showDead=false; S.hero=0;
+  S.players=S.players.map(()=>[null,null]); S.board=[]; S.runs=[[],[],[]]; S.dead=[]; S.showDead=false; S.hero=0; syncLanes();
   closePick(); render(); show();
 };
 document.getElementById("pickClear").onclick=clearSlot;
