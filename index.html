@@ -777,5 +777,11 @@ window.addEventListener("resize",()=>{ if(!document.getElementById("sheet").hidd
 
 render(); show();
 </script>
+<script>
+/* オフライン対応。失敗しても本体の動作には影響させない */
+if("serviceWorker" in navigator){
+  addEventListener("load",function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); });
+}
+</script>
 </body>
 </html>
