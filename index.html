@@ -223,7 +223,6 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
     <div class="suits">
       <div class="suitcards" id="suits"></div>
       <button class="btn" id="pickClear">クリア</button>
-      <button class="btn" id="pickClose">閉じる</button>
     </div>
     <div class="ranks" id="ranks"></div>
   </div>
@@ -299,7 +298,8 @@ const S = {
   runs:[0,1,2].map(()=>[null,null,null,null,null]),     // ラン2以降の上書き。空きはボードの札を使う
   dead:[], showDead:false, R:2, acc:0, hero:0
 };
-let active=null, pickRank=null;
+const DEF_RANK=12;                       // 既定で A を選んでおく
+let active=null, pickRank=DEF_RANK;
 
 function usedCards(){
   const u=new Set();
@@ -391,8 +391,8 @@ function render(){
 
 /* ============================ ピッカー ============================ */
 /* パネルは出しっぱなし。開く／閉じるは「どのマスを狙っているか」の切り替えだけ */
-function openPick(k,i,j){ active={k,i,j}; pickRank=null; render(); }
-function closePick(){ active=null; pickRank=null; render(); }
+function openPick(k,i,j){ active={k,i,j}; pickRank=DEF_RANK; render(); }
+function closePick(){ active=null; pickRank=DEF_RANK; render(); }
 
 function drawPick(){
   const pad=document.querySelector(".pad");
@@ -410,7 +410,7 @@ function drawPick(){
   });
   const su=document.getElementById("suits"); su.innerHTML="";
   if(!active){ su.innerHTML='<span class="hint">マスをタップしてください</span>'; return; }
-  if(pickRank==null){ su.innerHTML='<span class="hint">ランクを選んでください</span>'; return; }
+  if(pickRank==null) pickRank=DEF_RANK;
   for(let s=0;s<4;s++){
     const c=cid(pickRank,s), taken=used.has(c)&&c!==cur;
     const el=cardEl(c,{dis:taken});
@@ -458,10 +458,9 @@ function clearSlot(){
   const after=allSlots();
   const shift=(k==="d") && removed;
   const nxt=after[Math.min(shift?at:at+1, after.length-1)];
-  pickRank=null;
-  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); }
-  else closePick();
-  show();
+  pickRank=DEF_RANK;
+  if(nxt) active={k:nxt.k,i:nxt.i,j:nxt.j};
+  render(); show();
 }
 function slotVal(x){
   if(x.k==="p") return S.players[x.i][x.j];
@@ -472,14 +471,14 @@ function slotVal(x){
 /* 1枚置いたら次の空き枠へ。ホールカードからボードまでは続けて送り、
    ランの枠はランの中だけで送る（勝手にボードへ飛ばさない） */
 function advance(){
-  pickRank=null;
+  pickRank=DEF_RANK;
   if(active.k==="d"){ active={k:"d",i:0,j:S.dead.length}; render(); show(); return; }
   const allow = active.k==="p" ? ["p","b"] : active.k==="b" ? ["b"] : ["r"];
   const L=allSlots();
   const at=L.findIndex(x=>x.k===active.k&&x.i===active.i&&x.j===active.j);
   const nxt=L.slice(at+1).find(x=>allow.indexOf(x.k)>=0 && slotVal(x)==null);
-  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); show(); }
-  else { closePick(); show(); }
+  if(nxt) active={k:nxt.k,i:nxt.i,j:nxt.j};
+  render(); show();
 }
 
 /* ============================ 計算 ============================ */
@@ -740,10 +739,9 @@ resetBtn.onclick=()=>{
   }
   disarm();
   S.players=S.players.map(()=>[null,null]); S.board=[]; S.runs=[[],[],[]]; S.dead=[]; S.showDead=false; S.hero=0; syncLanes();
-  closePick(); render(); show();
+  active={k:"p",i:0,j:0}; pickRank=DEF_RANK; render(); show();
 };
 document.getElementById("pickClear").onclick=clearSlot;
-document.getElementById("pickClose").onclick=closePick;
 /* 起動時は1人目の1枚目を狙った状態にしておく。開いてすぐ打ち始められる */
 active={k:"p",i:0,j:0};
 render(); show();
