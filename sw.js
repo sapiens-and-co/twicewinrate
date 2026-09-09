@@ -1,5 +1,5 @@
 /* ポーカー トゥワイス勝率 - オフライン用。build.py が自動生成する。直接編集しないこと */
-const VERSION = "9ab995c43e";
+const VERSION = "6298b8c291";
 const CORE    = "twice-core-" + VERSION;
 const FONTS   = "twice-fonts-v1";
 const ASSETS  = ["./", "./index.html", "./manifest.json",

@@ -75,9 +75,8 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 
 /* ---------- head ---------- */
 .head{display:flex; align-items:center; justify-content:space-between; gap:10px}
-.brand{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:25px; letter-spacing:.01em; line-height:1.1}
+.brand{font-family:"Bodoni Moda",Georgia,serif; font-weight:700; font-size:21px; letter-spacing:.01em; line-height:1.1}
 .brand em{font-style:normal; color:var(--run2)}
-.tag{font-size:11px; color:var(--muted); letter-spacing:.11em; text-transform:uppercase; white-space:nowrap}
 
 /* ---------- generic block ---------- */
 .blk{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 12px; box-shadow:var(--shadow)}
@@ -200,10 +199,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 
 <div class="wrap">
   <div class="head">
-    <div>
-      <div class="brand">Run It <em>Twice</em></div>
-      <div class="tag">equity &amp; variance</div>
-    </div>
+    <div class="brand">Run It <em>Twice</em></div>
     <div class="row" style="gap:6px; flex-wrap:nowrap">
       <button class="btn" id="themeBtn">配色切替</button>
       <button class="btn" id="reset">リセット</button>
@@ -220,7 +216,6 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
       </div>
     </div>
     <div class="plist" id="players"></div>
-    <div class="note">行をタップすると基準プレイヤー（黄枠）が切り替わります。</div>
   </div>
 
   <!-- board -->
@@ -231,27 +226,24 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
     </div>
     <div class="stem" id="stem"></div>
     <div class="fork" id="fork"></div>
-    <div class="note" id="deckNote"></div>
   </div>
 
   <!-- settings -->
   <div class="blk">
-    <div class="row">
-      <span class="lbl" style="margin-right:auto">ラン数</span>
+    <div class="row" style="flex-wrap:nowrap">
+      <span class="lbl">ラン数</span>
       <div class="seg" id="runSeg">
         <button data-r="1">1本</button><button data-r="2">2本</button><button data-r="3">3本</button>
       </div>
-    </div>
-    <div class="row" style="margin-top:9px">
-      <span class="lbl" style="margin-right:auto">精度</span>
+      <span class="lbl" style="margin-left:auto">精度</span>
       <div class="seg" id="accSeg">
         <button data-a="0">標準</button><button data-a="1">高精度</button>
       </div>
-      <button class="btn" id="recalc">再計算</button>
     </div>
     <div class="row" style="margin-top:9px">
       <button class="btn" id="deadBtn">デッドカード</button>
       <div class="row" id="deadRow" style="gap:5px"></div>
+      <button class="btn" id="recalc" style="margin-left:auto">再計算</button>
     </div>
   </div>
 
@@ -259,12 +251,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
   <div id="result"></div>
 
   <div class="foot">
-    共通ボードを埋めた枚数がオールインのストリートになります。<br>
-    ラン内の「?」を押すと、その1本目・2本目のカードを固定できます。
-    <span class="copy">
-      © 2026 Sapiens &amp; Co.　<b>このツールの複製・改変・再配布を禁じます。</b>
-      ご自身で使うためのダウンロードや、URLの共有・紹介は自由です。
-    </span>
+    <span class="copy">© 2026 Sapiens &amp; Co.</span>
   </div>
 </div>
 
@@ -467,14 +454,34 @@ function setSlot(c){
   else S.dead[j]=c;
   advance();
 }
+/* 入力できる枠を上から順に並べたもの。クリアの送り先に使う */
+function allSlots(){
+  const L=[];
+  S.players.forEach((h,i)=>h.forEach((c,j)=>L.push({k:"p",i,j})));
+  for(let j=0;j<S.board.length;j++) L.push({k:"b",i:0,j});
+  if(S.board.length<5) L.push({k:"b",i:0,j:S.board.length});
+  for(let i=0;i<S.R;i++) for(let j=0;j<laneCount();j++) L.push({k:"r",i,j});
+  if(S.showDead) for(let j=0;j<=S.dead.length;j++) L.push({k:"d",i:0,j});
+  return L;
+}
+/* 押すたびに1枚消して次の枠へ送る。押しっぱなしで端から消していける。
+   ⚠ 共通ボードとデッドカードは詰まる配列なので、消した位置に次の札が来る */
 function clearSlot(){
   if(!active) return;
   const {k,i,j}=active;
-  if(k==="p") S.players[i][j]=null;
-  else if(k==="b"){ S.board.splice(j,1); S.runs=[[],[],[]]; active=null; }
-  else if(k==="r") S.runs[i][j]=null;
-  else S.dead.splice(j,1);
-  pickRank=null; render(); if(active) drawPick(); else closePick();
+  const at=allSlots().findIndex(x=>x.k===k&&x.i===i&&x.j===j);
+  let removed=false;
+  if(k==="p"){ removed=S.players[i][j]!=null; S.players[i][j]=null; }
+  else if(k==="r"){ removed=S.runs[i][j]!=null; S.runs[i][j]=null; }
+  else if(k==="b" && j<S.board.length){ S.board.splice(j,1); S.runs=[[],[],[]]; removed=true; }
+  else if(k==="d" && j<S.dead.length){ S.dead.splice(j,1); removed=true; }
+  syncLanes();
+  const after=allSlots();
+  const shift=(k==="b"||k==="d") && removed;
+  const nxt=after[Math.min(shift?at:at+1, after.length-1)];
+  pickRank=null;
+  if(nxt){ active={k:nxt.k,i:nxt.i,j:nxt.j}; render(); drawPick(); }
+  else closePick();
   show();
 }
 /* ランの枠を上から順に並べる（ラン1の左→右、次にラン2） */
@@ -645,8 +652,6 @@ function solve(){
 const pct=(x,d=2)=>(x*100).toFixed(d)+"%";
 function show(){
   const box=document.getElementById("result");
-  const need=laneCount();
-  document.getElementById("deckNote").textContent = deckLine();
   const res=solve();
   if(res.err){ box.innerHTML=`<div class="blk"><div class="warn">${res.err}</div></div>`;
     S.players.forEach((h,i)=>{const e=document.getElementById("eq"+i); if(e){ e.className="eq"; e.innerHTML='<span class="wait">—</span>'; }});
@@ -731,16 +736,6 @@ function show(){
     : "モンテカルロ "+res.trials.toLocaleString()+" 回（誤差およそ ±"+(196*Math.sqrt(0.25/res.trials)).toFixed(2)+"%）"}
     <br>デッキ ${res.D}枚${S.dead.length?" ／ デッドカード "+S.dead.map(cname).join(" "):""}</div>`;
   box.innerHTML=html;
-}
-function deckLine(){
-  const used=usedCards().size, D=52-used, need=laneCount();
-  if(need===0) return "配る札はありません。";
-  const parts=[]; let av=D;
-  for(let i=0;i<S.R;i++){
-    const k=need-S.runs[i].filter(c=>c!=null).length;
-    parts.push(`ラン${i+1}: ${av}枚から${k}枚`); av-=k;
-  }
-  return parts.join(" ／ ") + "　（1本目に出た札は2本目のデッキから除かれます）";
 }
 
 /* ============================ 操作 ============================ */
